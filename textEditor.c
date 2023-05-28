@@ -31,7 +31,10 @@ struct editorConfig E;
 
 void die(const char *s)
 {
-    //perror pritns a descriptive error message with errno global variable
+    write(STDOUT_FILENO, "\x1b[2J", 4);
+    write(STDOUT_FILENO, "\x1b[H", 3);
+
+    //perror prints a descriptive error message with errno global variable
     perror(s);
     exit(1);
 }
@@ -87,7 +90,7 @@ char editorReadKey()
     while ((nread = read(STDIN_FILENO, &c, 1)) != 1)
     {
         //Won't treat EAGAIN to make it work in Cygwin
-        if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN)
+        if (nread == -1 && errno != EAGAIN)
             die("read");
     }
     return c;
@@ -129,9 +132,8 @@ int getWindowSize(int *rows, int *cols)
     {
         //Sending two escapes sequence : C (Cursor Forward) and B (Cursor Down) with larges values to be at right bottom
         if (write(STDOUT_FILENO, "\x1b[999C\x1b[99B", 12))
-            return getCursorPosition(rows, cols);
-        editorReadKey();
-        return -1;
+            return -1;
+        return getCursorPosition(rows, cols);
     }
     else
     {
@@ -237,13 +239,13 @@ void editorMoveCursor(char key)
             E.cx++;
             break;
         case 's':
-            E.cy--;
+            E.cy++;
             break;
         case 'q':
             E.cx--;
             break;
         case 'z':
-            E.cy++;
+            E.cy--;
             break;
     }
 }
@@ -260,6 +262,7 @@ void editorProcessKeypress()
             write(STDOUT_FILENO, "\x1b[H", 3);
             exit(0);
             break;
+
         case 'z':
         case 'q':
         case 's':
