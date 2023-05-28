@@ -35,6 +35,12 @@ void enableRawMode()
     //Disables echo printing, canonical mode , CtrlV and CtrlC & CtrlZ signals
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
 
+    //Sets minimum number of bytes of input needed before read() can return
+    raw.c_cc[VMIN] = 0;
+
+    //Sets max amount of time to wait before read() returns. (1/10 of seconds, 100ms)
+    raw.c_cc[VTIME] = 1;
+
     //TCSAFLUSH argument specifies when to apply the change
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
@@ -43,13 +49,18 @@ int main()
 {
     enableRawMode();
 
-    char c;
-    while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q')
+    while (1)
     {
+        char c = '\0';
+        read(STDIN_FILENO, &c, 1);
+
         if (iscntrl(c))
             printf("%d\r\n", c);
         else
             printf("%d ('%c')\r\n", c, c);
+
+        if (c == 'q')
+            break;
 
     }
     return 0;
