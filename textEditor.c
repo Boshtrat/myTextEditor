@@ -183,6 +183,10 @@ void editorRefreshScreen()
 {
     //Buffer for one big write to update once, avoiding flicker effect
     struct abuf ab = ABUF_INIT;
+
+    //Hides the cursor (Reset Mode)
+    abAppend(&ab, "\x1b[?25l", 6);
+
     //x1b is the escape character
     //Escape sequence command take arguments, here we use VT100 escape sequences
     //<esc>[2J clears the entire screen
@@ -194,6 +198,9 @@ void editorRefreshScreen()
     editorDrawRows(&ab);
 
     abAppend(&ab, "\x1b[H", 3);
+
+    //Redraw cusor (Set Mode)
+    abAppend(&ab, "\x1b[?25h", 6);
 
     write(STDOUT_FILENO, ab.b, ab.len);
     abFree(&ab);
