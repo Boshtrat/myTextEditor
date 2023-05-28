@@ -3,17 +3,29 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <errno.h>
 
 struct termios orig_termios;
 
-void disableRawMode() {
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+void die(const char *s)
+{
+    //perror pritns a descriptive error message with errno global variable
+    perror(s);
+    exit(1);
 }
+
+void disableRawMode() 
+{
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
+        die("tcsetattr");
+}
+
 
 //Raw mode does not echo input to the terminal. It is useful for password input
 void enableRawMode()
 {
-    tcgetattr(STDIN_FILENO, &orig_termios);
+    if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
+        die("tcgetattr");
 
     //whether it exits by main or exit, it ensures that the terminal is reset
     atexit(disableRawMode);
@@ -42,7 +54,8 @@ void enableRawMode()
     raw.c_cc[VTIME] = 1;
 
     //TCSAFLUSH argument specifies when to apply the change
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
+        die("tcsetattr");
 }
 
 int main() 
@@ -52,7 +65,9 @@ int main()
     while (1)
     {
         char c = '\0';
-        read(STDIN_FILENO, &c, 1);
+        //Won't treat EAGAIN to make it work in Cygwin
+        if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN)
+            die("read");
 
         if (iscntrl(c))
             printf("%d\r\n", c);
