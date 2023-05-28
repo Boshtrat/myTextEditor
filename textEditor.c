@@ -23,10 +23,14 @@ void enableRawMode()
     tcgetattr(STDIN_FILENO, &raw);
 
     //CtrlM produces CR, and disables CtrlS & CtrlQ, avoiding pausing transmission of data
-    raw.c_iflag &= ~(ICRNL | IXON);
+    //BRKINT will cause SIGINT when pressing CtrlC
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
 
     //Disables output processing
     raw.c_oflag &= ~(OPOST);
+
+    //Set character size (CS) to 8 bits per byte
+    raw.c_cflag |= ~(CS8);
 
     //Disables echo printing, canonical mode , CtrlV and CtrlC & CtrlZ signals
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
