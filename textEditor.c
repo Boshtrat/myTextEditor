@@ -83,13 +83,27 @@ char editorReadKey()
 
 /** output **/
 
+void editorDrawRows()
+{
+    //Don't know the size of terminal yet, so hardcode to 24
+    for (int y = 0; y < 24; y++)
+    {
+        write(STDOUT_FILENO, "~\r\n", 3);
+    }
+}
+
 void editorRefreshScreen()
 {
     //x1b is the escape character
     //Escape sequence command take arguments, here we use VT100 escape sequences
     //<esc>[2J clears the entire screen
     write(STDOUT_FILENO, "\x1b[2J", 4);
+
     //Reposition the cursor : first row and first column
+    write(STDOUT_FILENO, "\x1b[H", 3);
+
+    editorDrawRows();
+
     write(STDOUT_FILENO, "\x1b[H", 3);
 }
 
