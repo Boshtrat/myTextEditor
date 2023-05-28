@@ -18,6 +18,8 @@
 /** data **/
 
 struct editorConfig {
+    int cx;
+    int cy;
     int screenrows;
     int screencols;
     struct termios orig_termios;
@@ -214,7 +216,9 @@ void editorRefreshScreen()
 
     editorDrawRows(&ab);
 
-    abAppend(&ab, "\x1b[H", 3);
+    char buf[32];
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy + 1, E.cx + 1);
+    abAppend(&ab, buf, strlen(buf));
 
     //Redraw cusor (Set Mode)
     abAppend(&ab, "\x1b[?25h", 6);
@@ -224,6 +228,25 @@ void editorRefreshScreen()
 }
 
 /** input **/
+
+void editorMoveCursor(char key)
+{
+    switch(key)
+    {
+        case 'd':
+            E.cx++;
+            break;
+        case 's':
+            E.cy--;
+            break;
+        case 'q':
+            E.cx--;
+            break;
+        case 'z':
+            E.cy++;
+            break;
+    }
+}
 
 void editorProcessKeypress()
 {
@@ -237,6 +260,12 @@ void editorProcessKeypress()
             write(STDOUT_FILENO, "\x1b[H", 3);
             exit(0);
             break;
+        case 'z':
+        case 'q':
+        case 's':
+        case 'd':
+            editorMoveCursor(c);
+            break;
     }
 }
 
@@ -244,6 +273,8 @@ void editorProcessKeypress()
 
 void initEditor()
 {
+    E.cx = 0;
+    E.cy = 0;
     //Will initiliaze fiels in E struct
     if (getWindowSize(&E.screenrows, &E.screencols) == -1)
         die("getWindowSize");
