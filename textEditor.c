@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 #include <sys/ioctl.h>
 
 /** defines **/
@@ -136,35 +137,66 @@ int getWindowSize(int *rows, int *cols)
     }
 }
 
+/** append buffer **/
+
+struct abuf {
+    char *b;
+    int len;
+};
+
+#define ABUF_INIT {NULL, 0}
+
+void abAppend(struct abuf *ab, const char *s, int len)
+{
+    char *new = realloc(ab->b, ab->len + len);
+
+    if (new == NULL)
+        return;
+
+    memcpy(&new[ab->len], s, len);
+    ab->b = new;
+    ab->len += len;
+}
+
+void abFree(struct abuf *ab)
+{
+    free(ab->b);
+}
+
 
 /** output **/
 
-void editorDrawRows()
+void editorDrawRows(struct abuf *ab)
 {
     //Put tildes on the left, like Vim
     for (int y = 0; y < E.screenrows; y++)
     {
-        write(STDOUT_FILENO, "~", 1);
+        abAppend(ab, "~", 1);
 
         //In order to have a tilde on last line
         if (y < E.screenrows - 1)
-            write(STDOUT_FILENO, "\r\n", 2);
+            abAppend(ab, "\r\n", 2);
     }
 }
 
 void editorRefreshScreen()
 {
+    //Buffer for one big write to update once, avoiding flicker effect
+    struct abuf ab = ABUF_INIT;
     //x1b is the escape character
     //Escape sequence command take arguments, here we use VT100 escape sequences
     //<esc>[2J clears the entire screen
-    write(STDOUT_FILENO, "\x1b[2J", 4);
+    abAppend(&ab, "\x1b[2J", 4);
 
     //Reposition the cursor : first row and first column
-    write(STDOUT_FILENO, "\x1b[H", 3);
+    abAppend(&ab, "\x1b[H", 3);
 
-    editorDrawRows();
+    editorDrawRows(&ab);
 
-    write(STDOUT_FILENO, "\x1b[H", 3);
+    abAppend(&ab, "\x1b[H", 3);
+
+    write(STDOUT_FILENO, ab.b, ab.len);
+    abFree(&ab);
 }
 
 /** input **/
