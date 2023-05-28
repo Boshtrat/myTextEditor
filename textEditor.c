@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
+#include <sys/ioctl.h>
 
 /** defines **/
 
@@ -13,7 +14,13 @@
 
 /** data **/
 
-struct termios orig_termios;
+struct editorConfig {
+    int screenrows;
+    int screencols;
+    struct termios orig_termios;
+};
+
+struct editorConfig E;
 
 /** terminal **/
 
@@ -26,7 +33,7 @@ void die(const char *s)
 
 void disableRawMode() 
 {
-    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1)
         die("tcsetattr");
 }
 
@@ -34,12 +41,12 @@ void disableRawMode()
 //Raw mode does not echo input to the terminal. It is useful for password input
 void enableRawMode()
 {
-    if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
+    if (tcgetattr(STDIN_FILENO, &E.orig_termios) == -1)
         die("tcgetattr");
 
     //whether it exits by main or exit, it ensures that the terminal is reset
     atexit(disableRawMode);
-    struct termios raw = orig_termios;
+    struct termios raw = E.orig_termios;
 
     //Read terminal attributes into raw
     tcgetattr(STDIN_FILENO, &raw);
@@ -81,12 +88,27 @@ char editorReadKey()
     return c;
 }
 
+int getWindowSize(int *rows, int *cols)
+{
+    struct winsize ws;
+
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0)
+        return -1;
+    else
+    {
+        *cols = ws.ws_col;
+        *rows = ws.ws_row;
+        return 0;
+    }
+}
+
+
 /** output **/
 
 void editorDrawRows()
 {
-    //Don't know the size of terminal yet, so hardcode to 24
-    for (int y = 0; y < 24; y++)
+    //Put tildes on the left, like Vim
+    for (int y = 0; y < E.screenrows; y++)
     {
         write(STDOUT_FILENO, "~\r\n", 3);
     }
@@ -126,9 +148,17 @@ void editorProcessKeypress()
 
 /** init **/
 
+void initEditor()
+{
+    //Will initiliaze fiels in E struct
+    if (getWindowSize(&E.screenrows, &E.screencols) == -1)
+        die("getWindowSize");
+}
+
 int main() 
 {
     enableRawMode();
+    initEditor();
 
     while (1)
     {
