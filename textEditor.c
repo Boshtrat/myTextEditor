@@ -88,12 +88,46 @@ char editorReadKey()
     return c;
 }
 
+int getCursorPosition(int *rows, int *cols)
+{
+    if (write(STDOUT_FILENO, "\x1b[6n", 4))
+        return -1;
+
+    char buf[32];
+    unsigned int i = 0;
+
+    //Get response buffer (Cursor Position Report), ex: <esc>[24;80R 
+    while (i < sizeof(buf) - 1)
+    {
+        if (read(STDIN_FILENO, &buf[i], 1) != 1)
+            break;
+        if (buf[i] == 'R')
+            break;
+        i++;
+    }
+    buf[i] = '\0';
+
+    if (buf[0] != '\x1b' || buf[1] != '[')
+        return -1;
+
+    if (sscanf(&buf[2], "%d;%d", rows, cols) != 2)
+        return -1;
+
+    return 0;
+}
+
 int getWindowSize(int *rows, int *cols)
 {
     struct winsize ws;
 
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0)
+    {
+        //Sending two escapes sequence : C (Cursor Forward) and B (Cursor Down) with larges values to be at right bottom
+        if (write(STDOUT_FILENO, "\x1b[999C\x1b[99B", 12))
+            return getCursorPosition(rows, cols);
+        editorReadKey();
         return -1;
+    }
     else
     {
         *cols = ws.ws_col;
@@ -110,7 +144,11 @@ void editorDrawRows()
     //Put tildes on the left, like Vim
     for (int y = 0; y < E.screenrows; y++)
     {
-        write(STDOUT_FILENO, "~\r\n", 3);
+        write(STDOUT_FILENO, "~", 1);
+
+        //In order to have a tilde on last line
+        if (y < E.screenrows - 1)
+            write(STDOUT_FILENO, "\r\n", 2);
     }
 }
 
