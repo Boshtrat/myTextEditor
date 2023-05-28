@@ -173,6 +173,8 @@ void editorDrawRows(struct abuf *ab)
     {
         abAppend(ab, "~", 1);
 
+        //(Erase In Line) erases the part of the line to the right of the cursor
+        abAppend(ab, "\x1b[K", 3);
         //In order to have a tilde on last line
         if (y < E.screenrows - 1)
             abAppend(ab, "\r\n", 2);
@@ -186,11 +188,6 @@ void editorRefreshScreen()
 
     //Hides the cursor (Reset Mode)
     abAppend(&ab, "\x1b[?25l", 6);
-
-    //x1b is the escape character
-    //Escape sequence command take arguments, here we use VT100 escape sequences
-    //<esc>[2J clears the entire screen
-    abAppend(&ab, "\x1b[2J", 4);
 
     //Reposition the cursor : first row and first column
     abAppend(&ab, "\x1b[H", 3);
