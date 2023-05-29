@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 /** includes **/
 
 #include <termios.h>
@@ -7,6 +9,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/types.h>
 #include <sys/ioctl.h>
 
 /** defines **/
@@ -29,11 +32,18 @@ enum editorKey {
 
 /** data **/
 
+typedef struct erow {
+    int size;
+    char *chars;
+} erow;
+
 struct editorConfig {
     int cx;
     int cy;
     int screenrows;
     int screencols;
+    int numrows;
+    erow *row;
     struct termios orig_termios;
 };
 
@@ -210,6 +220,44 @@ int getWindowSize(int *rows, int *cols)
     }
 }
 
+/*** row operations **/
+
+void editorAppendRow(char *s, size_t len)
+{
+    E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1));
+
+    int at = E.numrows;
+    E.row[at].size = len;
+    E.row[at].chars = malloc(len + 1);
+    memcpy(E.row[at].chars, s, len);
+    E.row[at].chars[len] = '\0';
+    E.numrows++;
+}
+
+/** file i/o **/
+
+void editorOpen(char *filename)
+{
+    FILE *fp = fopen(filename, "r");
+    if (!fp)
+        die("fopen");
+
+    char *line = NULL;
+    size_t linecap = 0;
+    ssize_t linelen;
+    linelen = getline(&line, &linecap, fp);
+    while ((linelen = getline(&line, &linecap, fp)) != -1)
+    {
+        //We strip off \n and \r because we know each erow represents one line of text
+        while (linelen > 0 && (line[linelen - 1] == '\n' || line[linelen - 1] == '\r'))
+            linelen--;
+
+        editorAppendRow(line, linelen);
+    }
+    free(line);
+    fclose(fp);
+}
+
 /** append buffer **/
 
 struct abuf {
@@ -244,26 +292,36 @@ void editorDrawRows(struct abuf *ab)
     //Put tildes on the left, like Vim
     for (int y = 0; y < E.screenrows; y++)
     {
-        if (y == E.screenrows / 3)
+        if (y >= E.numrows)
         {
-            char welcome[80];
-            int welcomelen = snprintf(welcome, sizeof(welcome),
-                "My Editor -- version %s", EDITOR_VERSION);
-            if (welcomelen > E.screencols)
-                welcomelen = E.screencols;
-            int padding = (E.screencols - welcomelen) / 2;
-            if (padding)
+            //Display welcome message only if program is started without argument
+            if (E.numrows == 0 && y == E.screenrows / 3)
             {
-                abAppend(ab, "~", 1);
-                padding--;
+                char welcome[80];
+                int welcomelen = snprintf(welcome, sizeof(welcome),
+                    "My Editor -- version %s", EDITOR_VERSION);
+                if (welcomelen > E.screencols)
+                    welcomelen = E.screencols;
+                int padding = (E.screencols - welcomelen) / 2;
+                if (padding)
+                    {
+                    abAppend(ab, "~", 1);
+                    padding--;
+                }
+                while (padding--)
+                    abAppend(ab, " ", 1);
+                abAppend(ab, welcome, welcomelen);
             }
-            while (padding--)
-                abAppend(ab, " ", 1);
-            abAppend(ab, welcome, welcomelen);
+            else
+                abAppend(ab, "~", 1);
         }
         else
-            abAppend(ab, "~", 1);
-
+        {
+            int len = E.row[y].size;
+            if (len > E.screencols)
+                len = E.screencols;
+            abAppend(ab, E.row[y].chars, len);
+        }
         //(Erase In Line) erases the part of the line to the right of the cursor
         abAppend(ab, "\x1b[K", 3);
         //In order to have a tilde on last line
@@ -372,15 +430,19 @@ void initEditor()
 {
     E.cx = 0;
     E.cy = 0;
-    //Will initiliaze fiels in E struct
+    E.numrows = 0;
+    E.row = NULL;
+    //Will initiliaze fields in E struct
     if (getWindowSize(&E.screenrows, &E.screencols) == -1)
         die("getWindowSize");
 }
 
-int main() 
+int main(int argc, char **argv) 
 {
     enableRawMode();
     initEditor();
+    if (argc >= 2)
+        editorOpen(argv[1]);
 
     while (1)
     {
