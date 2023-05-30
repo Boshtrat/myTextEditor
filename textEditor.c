@@ -40,6 +40,7 @@ typedef struct erow {
 struct editorConfig {
     int cx;
     int cy;
+    int rowoff;
     int screenrows;
     int screencols;
     int numrows;
@@ -287,40 +288,53 @@ void abFree(struct abuf *ab)
 
 /** output **/
 
+void editorScroll()
+{
+    if (E.cy < E.rowoff)
+        E.rowoff = E.cy;
+
+    if (E.cy >= E.rowoff + E.screenrows)
+        E.rowoff = E.cy - E.screenrows + 1;
+}
+
 void editorDrawRows(struct abuf *ab)
 {
     //Put tildes on the left, like Vim
     for (int y = 0; y < E.screenrows; y++)
     {
-        if (y >= E.numrows)
+        int filerow = y + E.rowoff;
+        if (filerow >= E.numrows)
         {
-            //Display welcome message only if program is started without argument
-            if (E.numrows == 0 && y == E.screenrows / 3)
+            if (y >= E.numrows)
             {
-                char welcome[80];
-                int welcomelen = snprintf(welcome, sizeof(welcome),
-                    "My Editor -- version %s", EDITOR_VERSION);
-                if (welcomelen > E.screencols)
-                    welcomelen = E.screencols;
-                int padding = (E.screencols - welcomelen) / 2;
-                if (padding)
-                    {
-                    abAppend(ab, "~", 1);
-                    padding--;
+                //Display welcome message only if program is started without argument
+                if (E.numrows == 0 && y == E.screenrows / 3)
+                {
+                    char welcome[80];
+                    int welcomelen = snprintf(welcome, sizeof(welcome),
+                        "My Editor -- version %s", EDITOR_VERSION);
+                    if (welcomelen > E.screencols)
+                        welcomelen = E.screencols;
+                    int padding = (E.screencols - welcomelen) / 2;
+                    if (padding)
+                        {
+                        abAppend(ab, "~", 1);
+                        padding--;
+                    }
+                    while (padding--)
+                        abAppend(ab, " ", 1);
+                    abAppend(ab, welcome, welcomelen);
                 }
-                while (padding--)
-                    abAppend(ab, " ", 1);
-                abAppend(ab, welcome, welcomelen);
+                else
+                    abAppend(ab, "~", 1);
             }
-            else
-                abAppend(ab, "~", 1);
         }
         else
         {
-            int len = E.row[y].size;
+            int len = E.row[filerow].size;
             if (len > E.screencols)
                 len = E.screencols;
-            abAppend(ab, E.row[y].chars, len);
+            abAppend(ab, E.row[filerow].chars, len);
         }
         //(Erase In Line) erases the part of the line to the right of the cursor
         abAppend(ab, "\x1b[K", 3);
@@ -332,6 +346,8 @@ void editorDrawRows(struct abuf *ab)
 
 void editorRefreshScreen()
 {
+
+    editorScroll();
     //Buffer for one big write to update once, avoiding flicker effect
     struct abuf ab = ABUF_INIT;
 
@@ -344,7 +360,7 @@ void editorRefreshScreen()
     editorDrawRows(&ab);
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy + 1, E.cx + 1);
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, E.cx + 1);
     abAppend(&ab, buf, strlen(buf));
 
     //Redraw cusor (Set Mode)
@@ -365,7 +381,7 @@ void editorMoveCursor(int key)
                 E.cx++;
             break;
         case ARROW_DOWN:
-            if (E.cy != E.screenrows - 1)
+            if (E.cy != E.numrows)
                 E.cy++;
             break;
         case ARROW_LEFT:
@@ -430,6 +446,7 @@ void initEditor()
 {
     E.cx = 0;
     E.cy = 0;
+    E.rowoff = 0;
     E.numrows = 0;
     E.row = NULL;
     //Will initiliaze fields in E struct
