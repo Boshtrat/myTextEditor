@@ -502,6 +502,7 @@ void editorProcessKeypress()
 
         case PAGE_UP:
         {
+            E.cy = E.rowoff;
             int times = E.screenrows;
             while (times--)
                 editorMoveCursor(ARROW_UP);
@@ -509,6 +510,9 @@ void editorProcessKeypress()
         break;
         case PAGE_DOWN:
         {
+            E.cy = E.rowoff + E.screenrows - 1;
+            if (E.cy > E.numrows) 
+                E.cy = E.numrows;
             int times = E.screenrows;
             while (times--)
                 editorMoveCursor(ARROW_DOWN);
