@@ -50,6 +50,7 @@ struct editorConfig {
     int screencols;
     int numrows;
     erow *row;
+    char *filename;
     struct termios orig_termios;
 };
 
@@ -291,6 +292,8 @@ void editorAppendRow(char *s, size_t len)
 
 void editorOpen(char *filename)
 {
+    free(E.filename);
+    E.filename = strdup(filename);
     FILE *fp = fopen(filename, "r");
     if (!fp)
         die("fopen");
@@ -403,10 +406,39 @@ void editorDrawRows(struct abuf *ab)
         }
         //(Erase In Line) erases the part of the line to the right of the cursor
         abAppend(ab, "\x1b[K", 3);
-        //In order to have a tilde on last line
-        if (y < E.screenrows - 1)
-            abAppend(ab, "\r\n", 2);
+
+        abAppend(ab, "\r\n", 2);
     }
+}
+
+void editorDrawStatusBar(struct abuf *ab)
+{
+    //Switches to inverted colors
+    abAppend(ab, "\x1b[7m", 4);
+    
+    char status[80];
+    char rstatus[80];
+    int len = snprintf(status, sizeof(status), "%.20s - %d lines", E.filename ? E.filename : "[No Name]", E.numrows);
+    int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", E.cy + 1, E.numrows);
+    if (len > E.screencols)
+        len = E.screencols;
+    abAppend(ab, status, len);
+    while (len < E.screencols)
+    {
+        if (E.screencols - len == rlen)
+        {
+            abAppend(ab, rstatus, rlen);
+            break;
+        }
+        else
+        {
+            abAppend(ab, " ", 1);
+            len++;
+        }
+    }
+
+    //Switches back to normal formatting
+    abAppend(ab, "\x1b[m", 3);
 }
 
 void editorRefreshScreen()
@@ -423,6 +455,7 @@ void editorRefreshScreen()
     abAppend(&ab, "\x1b[H", 3);
 
     editorDrawRows(&ab);
+    editorDrawStatusBar(&ab);
 
     char buf[32];
     snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, (E.rx - E.coloff) + 1);
@@ -540,9 +573,12 @@ void initEditor()
     E.coloff = 0;
     E.numrows = 0;
     E.row = NULL;
+    E.filename = NULL;
     //Will initiliaze fields in E struct
     if (getWindowSize(&E.screenrows, &E.screencols) == -1)
         die("getWindowSize");
+    //Decrement so editorDrawRows doesn't try to draw a line of text at bottom of screen
+    E.screenrows -= 1;
 }
 
 int main(int argc, char **argv) 
