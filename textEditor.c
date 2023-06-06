@@ -22,6 +22,7 @@
 #define CTRL_KEY(k) ((k) & 0x1f)
 
 enum editorKey {
+    BACKSPACE = 127,
     ARROW_LEFT = 1000,
     ARROW_RIGHT,
     ARROW_UP,
@@ -566,6 +567,10 @@ void editorProcessKeypress()
 
     switch(c)
     {
+        case '\r':
+            //TODO
+            break;
+
         case CTRL_KEY('q'):
             //Not using atexit() because error message would get erased right after printing it with die()
             write(STDOUT_FILENO, "\x1b[2J", 4);
@@ -580,6 +585,12 @@ void editorProcessKeypress()
         case END_KEY:
             if (E.cy < E.numrows)
                 E.cx = E.row[E.cy].size;
+            break;
+
+        case BACKSPACE:
+        case CTRL_KEY('h'):
+        case DEL_KEY:
+            //TODO
             break;
 
         case PAGE_UP:
@@ -606,6 +617,10 @@ void editorProcessKeypress()
         case ARROW_DOWN:
         case ARROW_RIGHT:
             editorMoveCursor(c);
+            break;
+
+        case CTRL_KEY('l'):
+        case '\x1b':
             break;
 
         default:
