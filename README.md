@@ -16,7 +16,7 @@ The goal is to provide a minimalistic experience, with a simple interface and a 
 - Incremental search
 - Status bar
 
-## Images
+## Image
 
 ![myTextEditor](myTextEditorExample.png)
 
