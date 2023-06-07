@@ -41,6 +41,7 @@ enum editorKey {
 
 enum editorHighlight {
     HL_NORMAL = 0,
+    HL_COMMENT,
     HL_STRING,
     HL_NUMBER,
     HL_MATCH
@@ -51,6 +52,7 @@ enum editorHighlight {
 struct editorSyntax {
     char *filetype; 
     char **filematch; //Each string sonctains a pattern to match a filename against
+    char *singleline_comment_start;
     int flags; //Whether to highlight numbers and whether to highlight strings for that filetype
 };
 
@@ -91,6 +93,7 @@ struct editorSyntax HLDB[] = {
     {
         "c",
         C_HL_extensions,
+        "//",
         HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
     },
 };
@@ -289,6 +292,9 @@ void editorUpdateSyntax(erow *row)
     if (E.syntax == NULL)
         return;
 
+    char *scs = E.syntax->singleline_comment_start;
+    int scs_len = scs ? strlen(scs) : 0;
+
     //Considering the beginning of the line to be a separator
     int prev_sep = 1;
     //Keeping track of whethter we are currently inside a string
@@ -299,6 +305,15 @@ void editorUpdateSyntax(erow *row)
     {
         char c = row->render[i];
         unsigned char prev_hl = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
+
+        if (scs_len && !in_string)
+        {
+            if(!strncmp(&row->render[i], scs, scs_len))
+            {
+                memset(&row->hl[i], HL_COMMENT, row->rsize - i);
+                break;
+            }
+        }
 
         if (E.syntax->flags & HL_HIGHLIGHT_NUMBERS)
         {
@@ -349,6 +364,7 @@ int editorSyntaxToColor(int hl)
 {
     switch(hl)
     {
+        case HL_COMMENT: return 36;
         case HL_STRING: return 35;
         case HL_NUMBER: return 31;
         case HL_MATCH: return 34;
