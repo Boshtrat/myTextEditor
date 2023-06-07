@@ -18,9 +18,12 @@ The goal is to provide a minimalistic experience, with a simple interface and a 
 
 ## Images
 
-##Installation
+![myTextEditor](myTextEditorExample.png)
 
-To uuse this program, follow these steps:
+
+## Installation
+
+To use this program, follow these steps:
 
 1. Clone the repository
 ```bash
@@ -44,14 +47,11 @@ make
 
 ## Usage
 
-To open a file, run the program with the file name as an argument:
-```bash
-./myTextEditor file.txt
-```
-
-To save a file, press `Ctrl-S`.
-To search in a file, press `Ctrl-F`.
-To quit the program, press `Ctrl-Q`.
+- **Open a file:** : Pass it as an argument when running the program. *(`./myTextEditor file.txt`)*
+- **Save a file:** Press `Ctrl + s` to save the file.
+- **Quit:** Press `Ctrl + q` to quit the program.
+- **Search:** Press `Ctrl + f` to search for a word in the file. Use arrow keys to navigate through the elements.
+- **Syntax highlighting:** The program supports syntax highlighting for C, C++.
 
 ## To-do List
 
